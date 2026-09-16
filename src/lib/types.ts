@@ -87,9 +87,11 @@ export interface AutoDmJobPayload {
   sessionStep?: number;
 }
 
+export type JobType = 'auto_dm' | 'follow_up' | 'messenger_reply';
+
 export interface JobQueueRow {
   id: string;
-  job_type: 'auto_dm' | 'follow_up';
+  job_type: JobType;
   payload: AutoDmJobPayload;
   dedupe_key: string;
   status: 'pending' | 'processing' | 'done' | 'failed';

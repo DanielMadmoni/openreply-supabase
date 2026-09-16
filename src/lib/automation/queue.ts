@@ -12,7 +12,7 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
 import { debugLog } from '@/lib/debugLog';
-import type { AutoDmJobPayload, JobQueueRow } from '@/lib/types';
+import type { AutoDmJobPayload, JobQueueRow, JobType } from '@/lib/types';
 
 const logger = createLogger('queue');
 
@@ -22,8 +22,8 @@ export function retryBackoffMs(attempts: number): number {
 }
 
 export async function enqueueJob(
-  jobType: 'auto_dm' | 'follow_up',
-  payload: AutoDmJobPayload,
+  jobType: JobType,
+  payload: AutoDmJobPayload | Record<string, unknown>,
   dedupeKey: string
 ): Promise<string | null> {
   const db = createServiceClient();

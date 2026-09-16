@@ -131,3 +131,30 @@ A meta de custo zero vale para desenvolvimento e homologação de baixo volume, 
 7. **Operação:** observabilidade, DLQ, rate limits, auditoria e documentação Vercel/Supabase.
 
 Cada mudança de comportamento será implementada por TDD e validada com typecheck e build de produção antes de chegar à branch principal.
+
+## Estado do canal Messenger
+
+Implementado e coberto por testes:
+
+- `src/lib/facebook/oauth.ts` — Facebook Login, troca de código, token longo e listagem de Páginas;
+- `src/lib/facebook/api.ts` — envio de mensagens e inscrição de webhooks;
+- `src/lib/facebook/pages.ts` — persistência com token criptografado;
+- `src/lib/facebook/webhook.ts` — roteamento de eventos de Página;
+- `src/app/api/facebook/connect` — início do OAuth;
+- `src/app/api/facebook/callback` — conclusão do OAuth e conexão das Páginas;
+- `src/app/api/facebook/pages` — listagem para a interface;
+- `supabase/migrations/20260914000001_messenger_channel.sql` — tabela `facebook_pages`.
+
+Pendente, por depender de ambiente publicado e credenciais reais:
+
+- executor do job `messenger_reply`, que envia a resposta;
+- interface de seleção e desconexão de Páginas;
+- validação ponta a ponta com uma Página real.
+
+### Decisões de segurança do canal
+
+- o token da Página trafega no corpo JSON, nunca na URL, porque URLs aparecem em logs de proxy e no cabeçalho `Referer`;
+- o token nunca é devolvido à interface nem incluído no redirecionamento do OAuth;
+- a identidade do usuário vem sempre do JWT de estado assinado, nunca de parâmetro de consulta;
+- uma Página cuja inscrição de webhook falhou continua salva, porém sinalizada, para não descartar uma autorização já concedida;
+- eventos fora da janela de 24 horas da Meta são descartados antes de virar job.
