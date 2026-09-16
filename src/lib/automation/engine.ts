@@ -18,6 +18,7 @@ import {
   RateLimitDelay,
   AccountOnPause,
 } from '@/lib/automation/processJob';
+import { processMessengerReplyJob } from '@/lib/automation/processMessengerJob';
 import { AccountPausedMetaError, NonRetryableMetaError, MetaApiError, META_RATE_LIMIT_CODES } from '@/lib/instagram/errors';
 import type { JobQueueRow } from '@/lib/types';
 
@@ -48,7 +49,11 @@ export async function processDueJobs(limit: number): Promise<DrainResult> {
 
 async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
   try {
-    if (job.job_type === 'follow_up') {
+    if (job.job_type === 'messenger_reply') {
+      await processMessengerReplyJob(
+        job.payload as unknown as Parameters<typeof processMessengerReplyJob>[0]
+      );
+    } else if (job.job_type === 'follow_up') {
       await processFollowUpDmJob(job.payload);
     } else {
       await processAutoDmJob(job.payload, job.attempts + 1);
@@ -75,10 +80,16 @@ async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
       // Meta says this account is policy-blocked - open the breaker for 24h
       // and stop retrying. Protecting the creator's account beats delivering
       // one more DM.
-      await pauseAccount(
-        job.payload.instagramAccountId,
-        `Meta policy block (code ${err.code}${err.subcode ? `/${err.subcode}` : ''}): ${err.message}`
-      );
+      //
+      // The breaker is Instagram-specific: pauseAccount updates
+      // instagram_accounts, and a Messenger payload carries no such id.
+      // Calling it anyway would pause nothing while reporting success.
+      if (job.job_type !== 'messenger_reply') {
+        await pauseAccount(
+          job.payload.instagramAccountId,
+          `Meta policy block (code ${err.code}${err.subcode ? `/${err.subcode}` : ''}): ${err.message}`
+        );
+      }
       await markJobFailed(job.id, err.message);
       result.failed += 1;
       return;

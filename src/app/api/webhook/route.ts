@@ -16,6 +16,7 @@ import { after } from 'next/server';
 import { getMetaSettings } from '@/lib/settings';
 import { hmacSha256Hex, safeCompare } from '@/lib/crypto';
 import { processWebhookPayload } from '@/lib/automation/processWebhook';
+import { processMessengerWebhook } from '@/lib/facebook/webhook';
 import { processDueJobs } from '@/lib/automation/engine';
 import { createLogger } from '@/lib/logger';
 import { debugLog } from '@/lib/debugLog';
@@ -102,7 +103,13 @@ export async function POST(request: Request): Promise<Response> {
   // All heavy lifting AFTER the 200 is on the wire.
   after(async () => {
     try {
-      const enqueued = await processWebhookPayload(body);
+      // entry.id means different things per channel (IGSID vs Page ID), so the
+      // top-level object decides which processor owns the payload.
+      const enqueued =
+        body.object === 'page'
+          ? await processMessengerWebhook(body)
+          : await processWebhookPayload(body);
+
       // Fast path: drain what we just enqueued (plus any other due jobs).
       if (enqueued > 0) {
         await processDueJobs(Math.max(enqueued, 5));
