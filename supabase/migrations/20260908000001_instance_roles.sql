@@ -50,14 +50,29 @@ $$;
 -- RLS alone cannot compare OLD and NEW values. This trigger ensures an
 -- authenticated client cannot promote itself while service-role/admin SQL can
 -- still manage instance roles.
+--
+-- The role is read from the request JWT rather than auth.role(): that helper
+-- is not guaranteed to exist on a self-hosted instance, and because this
+-- trigger fires BEFORE UPDATE, a missing function would block EVERY profile
+-- update instead of only role changes. current_setting(..., true) returns
+-- NULL when the setting is absent (plain SQL sessions) instead of raising.
 CREATE OR REPLACE FUNCTION public.prevent_profile_role_escalation()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE
+  jwt_role TEXT;
 BEGIN
   IF NEW.role = OLD.role THEN
     RETURN NEW;
   END IF;
 
-  IF COALESCE(auth.role(), '') = 'service_role'
+  BEGIN
+    jwt_role := current_setting('request.jwt.claims', true)::jsonb ->> 'role';
+  EXCEPTION WHEN OTHERS THEN
+    -- Malformed or absent claims: treat as an untrusted caller.
+    jwt_role := NULL;
+  END;
+
+  IF COALESCE(jwt_role, '') = 'service_role'
     OR current_user IN ('postgres', 'supabase_admin', 'service_role') THEN
     RETURN NEW;
   END IF;
