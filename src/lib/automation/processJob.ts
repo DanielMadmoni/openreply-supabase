@@ -708,7 +708,9 @@ export async function processFollowUpDmJob(payload: AutoDmJobPayload): Promise<v
       await sendInstagramDm(
         payload.igAccountIgsid,
         { id: payload.triggerUserId },
-        `Hmm, I still can't see your follow 👀 Tap "${automation.ask_to_follow_visit_profile_button}" above, hit Follow, then tap "${automation.ask_to_follow_confirm_button}" again 🙏`,
+        /[֐-׿]/.test(`${automation.ask_to_follow_message ?? ''}${automation.ask_to_follow_confirm_button ?? ''}`)
+          ? `הממ, עדיין לא רואה שעקבתם 👀 לחצו על "${automation.ask_to_follow_visit_profile_button}" למעלה, לחצו על עקוב, ואז שוב על "${automation.ask_to_follow_confirm_button}" 🙏`
+          : `Hmm, I still can't see your follow 👀 Tap "${automation.ask_to_follow_visit_profile_button}" above, hit Follow, then tap "${automation.ask_to_follow_confirm_button}" again 🙏`,
         accessToken
       );
       await db
