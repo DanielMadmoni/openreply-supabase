@@ -15,7 +15,12 @@ export function keywordMatches(text: string, keywords: string[] | null): boolean
   return keywords.some((keyword) => {
     const normalizedKeyword = keyword.toLowerCase().trim();
     if (!normalizedKeyword) return false;
-    const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(normalizedKeyword)}\\b`);
+    // JS `\b` is ASCII-only, so it never matches Hebrew/Arabic/etc. Use
+    // Unicode-aware boundaries instead: not preceded/followed by a letter, digit or underscore.
+    const wordBoundaryRegex = new RegExp(
+      `(?<![\\p{L}\\p{N}_])${escapeRegex(normalizedKeyword)}(?![\\p{L}\\p{N}_])`,
+      'u'
+    );
     return wordBoundaryRegex.test(normalizedText);
   });
 }
